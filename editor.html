@@ -5,61 +5,155 @@
   <title>VadaPav Playground</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: monospace; background: #1a1a1a; color: #ccc; height: 100vh; display: flex; flex-direction: column; }
-    .panels { display: flex; flex: 1; gap: 4px; padding: 8px; }
-    textarea { flex: 1; font-family: monospace; font-size: 14px; padding: 10px; background: #222; color: #ddd; border: 1px solid #444; resize: none; }
-    #output { color: #8d8; }
-    #status { padding: 4px 8px; font-size: 12px; }
-    .error { color: #e55; }
+    body { font-family: monospace; background: #1a1610; color: #c4b89a; height: 100vh; display: flex; flex-direction: column; }
+    #status { padding: 4px 12px; font-size: 12px; background: #1f1b16; border-bottom: 1px solid #332e26; }
+    .panels { display: flex; flex: 1; overflow: hidden; }
+    #editor-wrap { flex: 1; }
+    #output { flex: 1; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 13px; line-height: 1.6; padding: 10px 14px; background: #1a1610; color: #8a9a6e; border: none; border-left: 1px solid #332e26; white-space: pre-wrap; overflow: auto; }
   </style>
 </head>
 <body>
-  <div id="status">loading transpiler...</div>
+  <div id="status">loading...</div>
   <div class="panels">
-    <textarea id="source" spellcheck="false">Bhaiya dikhao "namaste duniya!"
-Bhaiya dikhao "VadaPav ready hai!"</textarea>
-    <textarea id="output" readonly></textarea>
+    <div id="editor-wrap"></div>
+    <pre id="output"></pre>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
   <script type="module">
     import { transpile } from './vadapav.mjs';
-    document.getElementById('status').textContent = 'ready';
 
-    const src = document.getElementById('source');
-    const out = document.getElementById('output');
+    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
 
-    function run() {
-      const lines = src.value.split('\n');
-      const results = lines.map(line => {
-        const trimmed = line.trim();
-        if (!trimmed) return { js: '', error: null };
-        const result = transpile(trimmed);
-        if (result.startsWith('error:')) return { js: '', error: result };
-        return { js: result, error: null };
+    require(['vs/editor/editor.main'], function () {
+
+      // Register language
+      monaco.languages.register({ id: 'vadapav' });
+      monaco.languages.setMonarchTokensProvider('vadapav', {
+        keywords: ['Bhaiya', 'dikhao', 'Agar', 'toh', 'Nahi', 'Bas', 'Ek', 'plate', 'VadaPav', 'Bill', 'de', 'bhaiya', 'mein', 'daal', 'Jab', 'tak', 'Tikha', 'Feeka', 'Extra', 'mirchi'],
+        tokenizer: {
+          root: [
+            [/"[^"]*"?/, 'string'],
+            [/\d+/, 'number'],
+            [/[A-Za-z_][\w-]*/, { cases: { '@keywords': 'keyword', '@default': 'identifier' } }],
+            [/[+\-*\/]/, 'operator'],
+            [/\s+/, 'white'],
+          ]
+        }
       });
 
-      const errors = results.filter(r => r.error).map(r => r.error);
-      const js = results.map(r => r.js).filter(Boolean).join('\n');
-
-      let display = '';
-      if (errors.length) display += errors.join('\n') + '\n\n';
-      if (js) {
-        display += '// --- JS ---\n' + js + '\n\n';
-        try {
-          const logs = [];
-          const fake = { log: (...a) => logs.push(a.join(' ')) };
-          new Function('console', js)(fake);
-          display += '// --- output ---\n' + logs.join('\n');
-        } catch (e) {
-          display += '// --- runtime error ---\n' + e.message;
+      // VadaPav theme — warm dark, street food palette
+      monaco.editor.defineTheme('vadapav-dark', {
+        base: 'vs-dark',
+        inherit: false,
+        rules: [
+          { token: '',           foreground: 'C4B89A' },              // default text — warm beige
+          { token: 'keyword',    foreground: 'E0A030', fontStyle: 'bold' }, // saffron
+          { token: 'string',     foreground: '8ABB5A' },              // chutney green
+          { token: 'number',     foreground: '7EAAC5' },              // lassi blue
+          { token: 'identifier', foreground: 'C4B89A' },              // warm beige
+          { token: 'operator',   foreground: '7A7060' },              // muted stone
+          { token: 'comment',    foreground: '555045', fontStyle: 'italic' },
+        ],
+        colors: {
+          'editor.background':                '#1F1B16',
+          'editor.foreground':                '#C4B89A',
+          'editor.lineHighlightBackground':   '#28231C',
+          'editor.selectionBackground':       '#3D3528',
+          'editor.inactiveSelectionBackground':'#2E2922',
+          'editorCursor.foreground':          '#E0A030',
+          'editorLineNumber.foreground':      '#4A4035',
+          'editorLineNumber.activeForeground':'#E0A030',
+          'editorIndentGuide.background':     '#2A2520',
+          'editorWidget.background':          '#252017',
+          'editorWidget.border':              '#332E26',
+          'editorSuggestWidget.background':   '#252017',
+          'editorSuggestWidget.border':       '#332E26',
+          'editorSuggestWidget.selectedBackground': '#3D3528',
+          'editorOverviewRuler.errorForeground': '#CC4433',
+          'editorError.foreground':           '#CC4433',
+          'editorWarning.foreground':         '#E0A030',
+          'scrollbarSlider.background':       '#332E2680',
+          'scrollbarSlider.hoverBackground':  '#4A403580',
+          'scrollbarSlider.activeBackground':  '#5A504580',
         }
-      }
-      out.value = display;
-    }
+      });
 
-    let timer;
-    src.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 200); });
-    run();
+      // Create editor
+      const editor = monaco.editor.create(document.getElementById('editor-wrap'), {
+        value: 'Bhaiya dikhao "namaste duniya!"\nBhaiya dikhao "VadaPav ready hai!"',
+        language: 'vadapav',
+        theme: 'vadapav-dark',
+        fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+        fontSize: 14,
+        lineHeight: 22,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        automaticLayout: true,
+        padding: { top: 8 },
+        cursorBlinking: 'smooth',
+        renderLineHighlight: 'gutter',
+      });
+
+      const out = document.getElementById('output');
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = 'ready';
+
+      function parseError(result) {
+        const m = result.match(/^error:(\d+):(\d+):(\d+):(\d+): (.+)$/);
+        if (!m) return null;
+        return { startLine: +m[1], startCol: +m[2], endLine: +m[3], endCol: +m[4], message: m[5] };
+      }
+
+      function run() {
+        const lines = editor.getValue().split('\n');
+        const markers = [];
+        const jsLines = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const trimmed = lines[i].trim();
+          if (!trimmed) continue;
+          const result = transpile(trimmed);
+          const err = parseError(result);
+          if (err) {
+            markers.push({
+              startLineNumber: i + 1, startColumn: err.startCol,
+              endLineNumber: i + 1, endColumn: err.endCol,
+              message: err.message,
+              severity: monaco.MarkerSeverity.Error,
+            });
+          } else {
+            jsLines.push(result);
+          }
+        }
+
+        monaco.editor.setModelMarkers(editor.getModel(), 'vadapav', markers);
+
+        const js = jsLines.join('\n');
+        let display = '';
+        if (markers.length) {
+          display += markers.map(m => 'line ' + m.startLineNumber + ': ' + m.message).join('\n') + '\n\n';
+        }
+        if (js) {
+          display += '// --- JS ---\n' + js + '\n\n';
+          try {
+            const logs = [];
+            new Function('console', js)({ log: (...a) => logs.push(a.join(' ')) });
+            display += '// --- output ---\n' + logs.join('\n');
+          } catch (e) {
+            display += '// --- runtime error ---\n' + e.message;
+          }
+        }
+        out.textContent = display;
+
+        statusEl.textContent = markers.length ? markers.length + ' error' + (markers.length > 1 ? 's' : '') : 'sab badhiya!';
+        statusEl.style.color = markers.length ? '#CC4433' : '#8ABB5A';
+      }
+
+      let timer;
+      editor.onDidChangeModelContent(() => { clearTimeout(timer); timer = setTimeout(run, 200); });
+      run();
+    });
   </script>
 </body>
 </html>
