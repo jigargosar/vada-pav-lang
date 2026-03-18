@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>VadaPav Playground</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: monospace; background: #1a1a1a; color: #ccc; height: 100vh; display: flex; flex-direction: column; }
+    .panels { display: flex; flex: 1; gap: 4px; padding: 8px; }
+    textarea { flex: 1; font-family: monospace; font-size: 14px; padding: 10px; background: #222; color: #ddd; border: 1px solid #444; resize: none; }
+    #output { color: #8d8; }
+    #status { padding: 4px 8px; font-size: 12px; }
+    .error { color: #e55; }
+  </style>
+</head>
+<body>
+  <div id="status">loading transpiler...</div>
+  <div class="panels">
+    <textarea id="source" spellcheck="false">Bhaiya dikhao "namaste duniya!"
+Bhaiya dikhao "VadaPav ready hai!"</textarea>
+    <textarea id="output" readonly></textarea>
+  </div>
+
+  <script type="module">
+    import { transpile } from './vadapav.mjs';
+    document.getElementById('status').textContent = 'ready';
+
+    const src = document.getElementById('source');
+    const out = document.getElementById('output');
+
+    function run() {
+      const lines = src.value.split('\n');
+      const results = lines.map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return { js: '', error: null };
+        const result = transpile(trimmed);
+        if (result.startsWith('error:')) return { js: '', error: result };
+        return { js: result, error: null };
+      });
+
+      const errors = results.filter(r => r.error).map(r => r.error);
+      const js = results.map(r => r.js).filter(Boolean).join('\n');
+
+      let display = '';
+      if (errors.length) display += errors.join('\n') + '\n\n';
+      if (js) {
+        display += '// --- JS ---\n' + js + '\n\n';
+        try {
+          const logs = [];
+          const fake = { log: (...a) => logs.push(a.join(' ')) };
+          new Function('console', js)(fake);
+          display += '// --- output ---\n' + logs.join('\n');
+        } catch (e) {
+          display += '// --- runtime error ---\n' + e.message;
+        }
+      }
+      out.value = display;
+    }
+
+    let timer;
+    src.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(run, 200); });
+    run();
+  </script>
+</body>
+</html>
