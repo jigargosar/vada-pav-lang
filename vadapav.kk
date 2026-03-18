@@ -99,13 +99,19 @@ fun lex-all()
 
 fun parse-expr(tokens : list<token>)
   match tokens
+    // Bhaiya dikhao "..." — valid print
     Cons(TKeyword("Bhaiya", _), Cons(TKeyword("dikhao", _), Cons(TString(s, _), _))) ->
       EPrint(ELitString(s))
+    // Bhaiya dikhao <nothing useful> — missing value
     Cons(TKeyword("Bhaiya", _), Cons(TKeyword("dikhao", ds), rest)) ->
       val spn = match rest
         Cons(t, _) -> token-span(t)
         Nil        -> ds
       fail("bhai dikhao bola, par kya? hawa dikhau?", spn)
+    // Bhaiya <wrong word> — squiggle on the wrong word
+    Cons(TKeyword("Bhaiya", _), Cons(t, _)) ->
+      fail("bhai 'dikhao' bolna tha, ye kya bol diya?", token-span(t))
+    // Anything else
     Cons(t, _) ->
       fail("ye suno, aisa kuch nahi milta yahan!", token-span(t))
     Nil ->
@@ -155,3 +161,4 @@ fun main()
   println(transpile("kuch bhi"))
   println(transpile("Bhaiya dikhao"))
   println(transpile("Bhaiya dikhao \"oops"))
+  println(transpile("Bhaiya dikao \"hello\""))

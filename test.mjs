@@ -38,14 +38,19 @@ const tests = [
     expected: "error:1:14:1:14: bhai dikhao bola, par kya? hawa dikhau?",
   },
   {
-    name: "error: just Bhaiya at 1:1-1:7",
+    name: "error: just Bhaiya — tells you dikhao is missing",
     input: "Bhaiya",
-    expected: "error:1:1:1:7: ye suno, aisa kuch nahi milta yahan!",
+    expected: "error:1:7:1:7: bhai 'dikhao' bolna tha, ye kya bol diya?",
   },
   {
     name: "error: empty input",
     input: "",
     expected: "error:1:1:1:1: ye suno, aisa kuch nahi milta yahan!",
+  },
+  {
+    name: "error: typo in dikhao — squiggle on wrong word not Bhaiya",
+    input: 'Bhaiya dikao "hello"',
+    expected: "error:1:8:1:13: bhai 'dikhao' bolna tha, ye kya bol diya?",
   },
 ];
 
