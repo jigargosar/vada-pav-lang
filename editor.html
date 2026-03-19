@@ -27,7 +27,7 @@
 
     require(['vs/editor/editor.main'], function () {
 
-      // Register language
+      // === Register language ===
       monaco.languages.register({ id: 'vadapav' });
       monaco.languages.setMonarchTokensProvider('vadapav', {
         keywords: ['Bhaiya', 'dikhao', 'Agar', 'toh', 'Nahi', 'Bas', 'Ek', 'plate', 'VadaPav', 'Bill', 'de', 'bhaiya', 'mein', 'daal', 'Jab', 'tak', 'Tikha', 'Feeka', 'Extra', 'mirchi'],
@@ -42,17 +42,17 @@
         }
       });
 
-      // VadaPav theme — warm dark, street food palette
+      // === Theme ===
       monaco.editor.defineTheme('vadapav-dark', {
         base: 'vs-dark',
         inherit: false,
         rules: [
-          { token: '',           foreground: 'C4B89A' },              // default text — warm beige
-          { token: 'keyword',    foreground: 'E0A030', fontStyle: 'bold' }, // saffron
-          { token: 'string',     foreground: '8ABB5A' },              // chutney green
-          { token: 'number',     foreground: '7EAAC5' },              // lassi blue
-          { token: 'identifier', foreground: 'C4B89A' },              // warm beige
-          { token: 'operator',   foreground: '7A7060' },              // muted stone
+          { token: '',           foreground: 'C4B89A' },
+          { token: 'keyword',    foreground: 'E0A030', fontStyle: 'bold' },
+          { token: 'string',     foreground: '8ABB5A' },
+          { token: 'number',     foreground: '7EAAC5' },
+          { token: 'identifier', foreground: 'C4B89A' },
+          { token: 'operator',   foreground: '7A7060' },
           { token: 'comment',    foreground: '555045', fontStyle: 'italic' },
         ],
         colors: {
@@ -79,7 +79,218 @@
         }
       });
 
-      // Create editor
+      // === Completions + Snippets ===
+      monaco.languages.registerCompletionItemProvider('vadapav', {
+        triggerCharacters: ['B', 'A', 'E', 'J', 'N', 'T', 'F', 'm', 'd'],
+        provideCompletionItems: function (model, position) {
+          const word = model.getWordUntilPosition(position);
+          const range = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn,
+          };
+
+          const S = monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet;
+          const K = monaco.languages.CompletionItemKind;
+
+          return { suggestions: [
+            // Snippets (tab-expandable with cursor stops)
+            {
+              label: 'Bhaiya dikhao "..."',
+              kind: K.Snippet,
+              insertText: 'Bhaiya dikhao "${1:yahan likho}"',
+              insertTextRules: S,
+              detail: 'print karo',
+              documentation: 'Bhaiya dikhao "hello" → console.log("hello");',
+              range,
+            },
+            {
+              label: 'Agar...toh...Nahi toh...Bas',
+              kind: K.Snippet,
+              insertText: 'Agar ${1:condition} toh\n  ${2:agar sach}\nNahi toh\n  ${3:agar jhooth}\nBas',
+              insertTextRules: S,
+              detail: 'if/else',
+              documentation: 'if/else block with tab stops',
+              range,
+            },
+            {
+              label: 'Agar...toh...Bas',
+              kind: K.Snippet,
+              insertText: 'Agar ${1:condition} toh\n  ${2:body}\nBas',
+              insertTextRules: S,
+              detail: 'if (no else)',
+              documentation: 'if block without else',
+              range,
+            },
+            {
+              label: 'Ek plate VadaPav...Bill de bhaiya',
+              kind: K.Snippet,
+              insertText: 'Ek plate VadaPav\n  ${1}\nBill de bhaiya',
+              insertTextRules: S,
+              detail: 'program wrapper',
+              documentation: 'wraps your code in main program block',
+              range,
+            },
+            {
+              label: 'Jab tak...Bas',
+              kind: K.Snippet,
+              insertText: 'Jab tak ${1:condition}\n  ${2:body}\nBas',
+              insertTextRules: S,
+              detail: 'while loop',
+              documentation: 'loop jab tak condition true hai',
+              range,
+            },
+            {
+              label: 'mein daal',
+              kind: K.Snippet,
+              insertText: '${1:x} mein daal ${2:value}',
+              insertTextRules: S,
+              detail: 'variable assign',
+              documentation: 'x mein daal 5 → let x = 5;',
+              range,
+            },
+            {
+              label: 'Extra mirchi "..."',
+              kind: K.Snippet,
+              insertText: 'Extra mirchi "${1:kya hua?}"',
+              insertTextRules: S,
+              detail: 'throw error',
+              documentation: 'throw an error with message',
+              range,
+            },
+
+            // Keywords (plain completion, no tab stops)
+            { label: 'Bhaiya',  kind: K.Keyword, insertText: 'Bhaiya',  range },
+            { label: 'dikhao',  kind: K.Keyword, insertText: 'dikhao',  range },
+            { label: 'Tikha',   kind: K.Keyword, insertText: 'Tikha',   detail: 'true',  range },
+            { label: 'Feeka',   kind: K.Keyword, insertText: 'Feeka',   detail: 'false', range },
+            { label: 'Agar',    kind: K.Keyword, insertText: 'Agar',    range },
+            { label: 'toh',     kind: K.Keyword, insertText: 'toh',     range },
+            { label: 'Nahi',    kind: K.Keyword, insertText: 'Nahi',    range },
+            { label: 'Bas',     kind: K.Keyword, insertText: 'Bas',     range },
+          ]};
+        }
+      });
+
+      // === Quick Fix ===
+      let currentMarkers = [];
+
+      monaco.languages.registerCodeActionProvider('vadapav', {
+        provideCodeActions: function (model, range, context) {
+          const actions = [];
+
+          for (const marker of context.markers) {
+            if (marker.message.includes("'dikhao' bolna tha")) {
+              const badWord = model.getValueInRange({
+                startLineNumber: marker.startLineNumber,
+                startColumn: marker.startColumn,
+                endLineNumber: marker.endLineNumber,
+                endColumn: marker.endColumn,
+              });
+
+              actions.push({
+                title: "abe 'dikhao' likhna tha, ye kya likh diya!",
+                kind: 'quickfix',
+                diagnostics: [marker],
+                edit: {
+                  edits: [{
+                    resource: model.uri,
+                    textEdit: {
+                      range: {
+                        startLineNumber: marker.startLineNumber,
+                        startColumn: marker.startColumn,
+                        endLineNumber: marker.endLineNumber,
+                        endColumn: marker.endColumn,
+                      },
+                      text: 'dikhao',
+                    },
+                    versionId: model.getVersionId(),
+                  }]
+                },
+                isPreferred: true,
+              });
+            }
+
+            if (marker.message.includes("aisa kuch nahi milta")) {
+              actions.push({
+                title: "abe seedha 'Bhaiya dikhao \"...\"' likh na!",
+                kind: 'quickfix',
+                diagnostics: [marker],
+                edit: {
+                  edits: [{
+                    resource: model.uri,
+                    textEdit: {
+                      range: {
+                        startLineNumber: marker.startLineNumber,
+                        startColumn: 1,
+                        endLineNumber: marker.startLineNumber,
+                        endColumn: model.getLineMaxColumn(marker.startLineNumber),
+                      },
+                      text: 'Bhaiya dikhao ""',
+                    },
+                    versionId: model.getVersionId(),
+                  }]
+                },
+              });
+            }
+
+            if (marker.message.includes("hawa dikhau")) {
+              const line = model.getLineContent(marker.startLineNumber);
+              actions.push({
+                title: "abe kuch toh likh \"...\" mein!",
+                kind: 'quickfix',
+                diagnostics: [marker],
+                edit: {
+                  edits: [{
+                    resource: model.uri,
+                    textEdit: {
+                      range: {
+                        startLineNumber: marker.startLineNumber,
+                        startColumn: 1,
+                        endLineNumber: marker.startLineNumber,
+                        endColumn: model.getLineMaxColumn(marker.startLineNumber),
+                      },
+                      text: line.trimEnd() + ' ""',
+                    },
+                    versionId: model.getVersionId(),
+                  }]
+                },
+                isPreferred: true,
+              });
+            }
+
+            if (marker.message.includes("idhar se khola")) {
+              const line = model.getLineContent(marker.startLineNumber);
+              actions.push({
+                title: 'abe band kar isko! " laga idhar!',
+                kind: 'quickfix',
+                diagnostics: [marker],
+                edit: {
+                  edits: [{
+                    resource: model.uri,
+                    textEdit: {
+                      range: {
+                        startLineNumber: marker.startLineNumber,
+                        startColumn: model.getLineMaxColumn(marker.startLineNumber),
+                        endLineNumber: marker.startLineNumber,
+                        endColumn: model.getLineMaxColumn(marker.startLineNumber),
+                      },
+                      text: '"',
+                    },
+                    versionId: model.getVersionId(),
+                  }]
+                },
+                isPreferred: true,
+              });
+            }
+          }
+
+          return { actions, dispose: () => {} };
+        }
+      });
+
+      // === Create editor ===
       const editor = monaco.editor.create(document.getElementById('editor-wrap'), {
         value: 'Bhaiya dikhao "namaste duniya!"\nBhaiya dikhao "VadaPav ready hai!"',
         language: 'vadapav',
@@ -93,6 +304,8 @@
         padding: { top: 8 },
         cursorBlinking: 'smooth',
         renderLineHighlight: 'gutter',
+        quickSuggestions: true,
+        suggestOnTriggerCharacters: true,
       });
 
       const out = document.getElementById('output');
